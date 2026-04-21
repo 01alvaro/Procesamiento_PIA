@@ -1,0 +1,184 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #4bd40c 0%, #175ad6 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.inicio {
+    margin-bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.mundo {
+    width: 100%;
+    max-width: 1100px;
+    height: 500px;
+    background-color: transparent;
+}
+
+.botones {
+    display: flex;
+    gap: 25px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 35px 70px;
+    font-size: 35px;
+    font-weight: bold;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+}
+
+.izquierda {
+    background: linear-gradient(120deg, #030f41 0%, #47c2db 100%);
+}
+
+.derecha {
+    background: linear-gradient(135deg, #4bd40c 0%, #cffee5 99%, #e5cffe 100%);
+    color: #e1e9e8; /* Texto oscuro para fondo claro */
+}
+
+
+
+.titulo {
+    color: #5ddac9;
+    margin-top: 10px;
+}
+
+
+
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(59, 196, 246, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 15px rgba(59, 196, 246, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(59, 196, 246, 0);
+    }
+}
+
+/* ========== VENTANA VIDEO ========== */
+.video {
+    width: 100vw;
+    height: 100vh;
+    background: #020617;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.contenedor-video {
+    margin-top: 30px;
+    width: 100%;
+    max-width: 800px;
+    height: 700px;
+    background: #1e293b;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5f5;
+    border: 2px solid #36ddc6;
+}
+
+/* ========== MODAL MANUAL DE USO ========== */
+.modal-fondo {
+    display: none; /* Oculto por defecto */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-contenido {
+    background: #1e293b;
+    border: 2px solid #36ddc6;
+    border-radius: 20px;
+    padding: 30px;
+    width: 90%;
+    max-width: 500px;
+    color: white;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    animation: aparecer 0.3s ease-out;
+    font-family: 'Poppins', sans-serif;
+}
+
+@keyframes aparecer {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.cerrar-modal {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    color: #94b6b8;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.cerrar-modal:hover {
+    color: #49dd36;
+}
+
+.lista-instrucciones {
+    text-align: left;
+    margin: 20px 0;
+    padding-left: 20px;
+    color: #e1d0cb;
+    font-size: 30px;
+}
+
+.lista-instrucciones li {
+    margin-bottom: 10px;
+}
+
+/* ========== RESPONSIVE MOBILE ========== */
+@media (max-width: 768px) {
+    .botones {
+        flex-direction: column;
+        width: 80%;
+    }
+    .btn {
+        width: 100%;
+    }
+    .mundo {
+        height: 300px;
+    }
+    .contenedor-video {
+        height: 400px;
+        width: 95%;
+    }
+}

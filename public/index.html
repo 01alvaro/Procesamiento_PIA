@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Scan AR</title>
+    
+    <!-- CSS de todas las pantallas -->
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/inf.css">
+    <link rel="stylesheet" href="/estadisticas.css">
+    <link rel="stylesheet" href="/jugadores.css">
+    
+    <!-- Scripts de A-Frame y Realidad Aumentada -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+    <style>
+        /* Ajustes para la cámara AR de fondo */
+        body { margin: 0; overflow: hidden; background: transparent !important; }
+        
+        /* Capas sobrepuestas (ventanas) */
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: none; /* Ocultas por defecto */
+            overflow-y: auto;
+            flex-direction: column;
+        }
+        
+        /* Transparencias para que se note la cámara atrás */
+        .overlay-transparente { background: transparent; }
+        .overlay-oscuro { background: rgba(0, 0, 0, 0.75); }
+    </style>
+</head>
+<body>
+
+    <!-- ESCENA AR (Cámara y escáner) -->
+    <a-scene id="ar-scene" mindar-image="imageTargetSrc: ./assets/targets.mind; uiError: yes; uiLoading: yes;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        
+        <!-- Targets definidos directamente en el HTML para evitar problemas de carga -->
+        <a-entity id="target-colombia" mindar-image-target="targetIndex: 0"></a-entity>
+        <a-entity id="target-coreadelsur" mindar-image-target="targetIndex: 1"></a-entity>
+        <a-entity id="target-espana" mindar-image-target="targetIndex: 2"></a-entity>
+        <a-entity id="target-japon" mindar-image-target="targetIndex: 3"></a-entity>
+        <a-entity id="target-mexico" mindar-image-target="targetIndex: 4"></a-entity>
+        <a-entity id="target-paisesbajos" mindar-image-target="targetIndex: 5"></a-entity>
+        <a-entity id="target-sudafrica" mindar-image-target="targetIndex: 6"></a-entity>
+        <a-entity id="target-tunez" mindar-image-target="targetIndex: 7"></a-entity>
+        <a-entity id="target-uruguay" mindar-image-target="targetIndex: 8"></a-entity>
+        <a-entity id="target-uzbekistan" mindar-image-target="targetIndex: 9"></a-entity>
+    </a-scene>
+
+    <!-- ======================= VENTANA DE ESCÁNER ======================= -->
+    <!-- Este marco le indicará al usuario que está en modo escaneo -->
+    <div id="ui-escaner" class="ui-overlay overlay-transparente" style="display: flex; justify-content: center; align-items: center; pointer-events: none;">
+        <div style="border: 4px dashed rgba(54, 221, 198, 0.8); width: 70%; max-width: 350px; height: 250px; border-radius: 20px; position: relative; box-shadow: 0 0 20px rgba(54,221,198,0.2) inset;">
+            <div style="position: absolute; bottom: -50px; width: 100%; text-align: center; color: white; font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 600; text-shadow: 0 2px 10px rgba(0,0,0,0.9);">
+                Apunta a una bandera
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= VENTANA INFORMACIÓN ======================= -->
+    <div id="ui-informacion" class="ui-overlay overlay-transparente pantalla equipo">
+        <div class="top-botones">
+            <button id="btn-stats">Estadisticas</button>
+            <button id="btn-video">Video</button>
+            <button id="btn-jugadores">Jugadores</button>
+            <button id="btn-animar">Animar</button>
+        </div>
+        <div class="contenido-equipo">
+            <model-viewer id="visor-bandera" src="" alt="Bandera 3D" autoplay auto-rotate camera-controls shadow-intensity="1" class="modelo-bandera"></model-viewer>
+            <model-viewer id="balon3d" src="/modelos/football.glb" style="position: absolute; width: 120px; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none;"></model-viewer>
+            
+            <button class="btn-regresar" onclick="cerrarInformacion()">Cerrar Info</button>
+
+            <!-- MODAL YOUTUBE -->
+            <div id="modalVideo" class="modal-fondo">
+                <div class="modal-contenido">
+                    <span class="cerrar-modal" onclick="cerrarVideo()">&times;</span>
+                    <h2 style="color: #36ddc6; margin: 0;">Video</h2>
+                    <div class="video-responsive">
+                        <iframe id="iframe-youtube" width="100%" height="100%" src="" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                    </div>
+                    <div class="filtros-video">
+                        <button class="btn-filtro activo" onclick="aplicarFiltro('normal', this)">Normal</button>
+                        <button class="btn-filtro" onclick="aplicarFiltro('bn', this)">Blanco y Negro</button>
+                        <button class="btn-filtro" onclick="aplicarFiltro('sepia', this)">Sepia</button>
+                        <button class="btn-filtro" onclick="aplicarFiltro('saturado', this)">Saturado</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= VENTANA ESTADÍSTICAS ======================= -->
+    <div id="ui-estadisticas" class="ui-overlay overlay-oscuro">
+        <h1 class="titulo-pagina">Rendimiento</h1>
+        <div class="stats-container">
+            <div class="stat-card">
+                <h3>Posición</h3>
+                <div class="numero-grande" id="posicion">--</div>
+                <div class="subtexto">Tabla general</div>
+            </div>
+            <div class="stat-card">
+                <h3>Puntos</h3>
+                <div class="circulo-progreso" id="pts">--</div>
+                <div class="subtexto">Promedio</div>
+            </div>
+            <div class="stat-card">
+                <h3>Goles</h3>
+                <div class="numero-grande" id="gf">--</div>
+                <div class="detalle-stat">
+                    <span id="ga">GA: --</span>
+                </div>
+            </div>
+        </div>
+        <div class="trivia-container">
+            <p style="color: white; text-align: center;">Cargando trivia...</p>
+        </div>
+        <button class="btn-regresar" onclick="volverAInformacion('ui-estadisticas')">Regresar</button>
+    </div>
+
+    <!-- ======================= VENTANA JUGADORES ======================= -->
+    <div id="ui-jugadores" class="ui-overlay overlay-oscuro">
+        <h1 class="titulo-pagina">Jugadores</h1>
+        <button class="btn-regresar" onclick="volverAInformacion('ui-jugadores')">Regresar</button>
+        <div class="album" id="album-jugadores">
+            <!-- Estampitas dinámicas -->
+        </div>
+    </div>
+
+    <!-- ======================= LOGICA UNIFICADA ======================= -->
+    <script>
+        let paisActual = null;
+
+        // --- BASE DE DATOS LOCAL EN EL NAVEGADOR ---
+        const statsPorPais = {
+            mexico: { posicion: 16, Pts: 66, GF: 62, GA: 101 },
+            sudafrica: { posicion: 60, Pts: 10, GF: 11, GA: 16 },
+            uzbekistan: { posicion: 52, Pts: 0, GF: 0, GA: 0 },
+            colombia: { posicion: 14, Pts: 30, GF: 32, GA: 30 },
+            coreadelsur: { posicion: 22, Pts: 31, GF: 39, GA: 78 },
+            uruguay: { posicion: 17, Pts: 88, GF: 89, GA: 76 },
+            espana: { posicion: 1, Pts: 110, GF: 108, GA: 75 },
+            tunez: { posicion: 47, Pts: 14, GF: 14, GA: 26 },
+            japon: { posicion: 19, Pts: 27, GF: 25, GA: 33 }
+        };
+
+        const jugadoresPorPais = {
+            mexico: [
+                { nombre: "Luis Malagon", posicion: "Portero", foto: "/jugadores/mexico1.jpg" },
+                { nombre: "Carlos Acevedo", posicion: "Portero", foto: "/jugadores/mexico2.jpg" },
+                { nombre: "Raul Rangel", posicion: "Portero", foto: "/jugadores/mexico3.jpg" },
+                { nombre: "Jesus Gallardo", posicion: "Defensa", foto: "/jugadores/mexico4.jpg" },
+                { nombre: "Edson Alvarez", posicion: "Defensa", foto: "/jugadores/mexico5.jpg" },
+                { nombre: "Cesar Montes", posicion: "Defensa", foto: "/jugadores/mexico6.png" },
+                { nombre: "Orbelin Pineda", posicion: "Medio", foto: "/jugadores/mexico7.jpg" },
+                { nombre: "Erick Sanchez", posicion: "Medio", foto: "/jugadores/mexico8.jpg" },
+                { nombre: "Erik Lira", posicion: "Delantero", foto: "/jugadores/mexico9.jpg" },
+                { nombre: "Raul Jimenez", posicion: "Medio", foto: "/jugadores/mexico10.jpg" },
+                { nombre: "Hirving Lozano", posicion: "Delantero", foto: "/jugadores/mexico11.jpg" },
+                { nombre: "Roberto Alvarado", posicion: "Delantero", foto: "/jugadores/mexico12.jpg" }
+            ],
+            colombia: [
+                { nombre: "David Ospina", posicion: "Portero", foto: "/jugadores/colombia1.jpg" },
+                { nombre: "Camilo Vargas", posicion: "Portero", foto: "/jugadores/colombia2.jpg" },
+                { nombre: "Alvaro Montero", posicion: "Portero", foto: "/jugadores/colombia3.jpg" },
+                { nombre: "Davinson Sanchez", posicion: "Defensa", foto: "/jugadores/colombia4.jpg" },
+                { nombre: "Santiago Arias", posicion: "Defensa", foto: "/jugadores/colombia5.jpg" },
+                { nombre: "Yerry Mina", posicion: "Defensa", foto: "/jugadores/colombia6.jpg" },
+                { nombre: "James Rodriguez", posicion: "Medio", foto: "/jugadores/colombia7.jpg" },
+                { nombre: "Jefferson Lerma", posicion: "Medio", foto: "/jugadores/colombia8.jpg" },
+                { nombre: "Jhon Arias", posicion: "Medio", foto: "/jugadores/colombia9.jpg" },
+                { nombre: "Luis Diaz", posicion: "Delantero", foto: "/jugadores/colombia10.jpg" },
+                { nombre: "Rafael Santos Borre", posicion: "Delantero", foto: "/jugadores/colombia11.jpg" },
+                { nombre: "Jhon Cordoba", posicion: "Delantero", foto: "/jugadores/colombia12.jpg" }
+            ],
+            japon: [
+                { nombre: "Tomoki Hayakawa", posicion: "Portero", foto: "/jugadores/japon1.jpg" },
+                { nombre: "Leo Kokubo", posicion: "Portero", foto: "/jugadores/japon2.jpg" },
+                { nombre: "Taishi Brandon Nozawa", posicion: "Portero", foto: "/jugadores/japon3.jpg"},
+                { nombre: "Yukinari Sugawara", posicion: "Defensa", foto: "/jugadores/japon4.jpg" },
+                { nombre: "Shogo Taniguchi", posicion: "Defensa", foto: "/jugadores/japon5.jpg" },
+                { nombre: "Ko Itakura", posicion: "Defensa", foto: "/jugadores/japon6.jpg"},
+                { nombre: "Wataru Endo", posicion: "Medio", foto: "/jugadores/japon7.jpg" },
+                { nombre: "Joel Chima Fujita", posicion: "Medio", foto: "/jugadores/japon8.jpg" },
+                { nombre: "Takumi Minamino", posicion: "Medio", foto: "/jugadores/japon9.jpg"},
+                { nombre: "Shuto Machino", posicion: "Delantero", foto: "/jugadores/japon10.jpg" },
+                { nombre: "Daizen Maeda", posicion: "Delantero", foto: "/jugadores/japon11.jpg" },
+                { nombre: "Ayase Ueda", posicion: "Delantero", foto: "/jugadores/japon12.jpg"},
+            ],
+            sudafrica: [
+                { nombre: "Ronwen Williams", posicion: "Portero", foto: "/jugadores/sudafrica1.jpeg" },
+                { nombre: "Ricardo Goss ", posicion: "Portero", foto: "/jugadores/sudafrica2.jpg" },
+                { nombre: "Sipho Chaine ", posicion: "Portero", foto: "/jugadores/sudafrica3.jpg" },
+                { nombre: "Aubrey Modiba", posicion: "Defensa", foto: "/jugadores/sudafrica4.jpeg" },
+                { nombre: "Thapelo Morena", posicion: "Defensa", foto: "/jugadores/sudafrica5.jpg" },
+                { nombre: "Khuliso Mudau", posicion: "Defensa", foto: "/jugadores/sudafrica6.jpg" },
+                { nombre: "Themba Zwane", posicion: "Medio", foto: "/jugadores/sudafrica7.jpeg" },
+                { nombre: "Teboho Mokoena", posicion: "Medio", foto: "/jugadores/sudafrica8.jpg" },
+                { nombre: "Sphephelo Sithole", posicion: "Medio", foto: "/jugadores/sudafrica9.jpg" },
+                { nombre: "Evidence Makgopa", posicion: "Delantero", foto: "/jugadores/sudafrica10.jpeg" },
+                { nombre: "Lyle Foster", posicion: "Delantero", foto: "/jugadores/sudafrica11.jpg" },
+                { nombre: "Oswin Appollis", posicion: "Delantero", foto: "/jugadores/sudafrica12.jpg" }
+            ],
+            coreadelsur: [
+                { nombre: "Kim Seung-gyu", posicion: "Portero", foto: "/jugadores/corea1.jpg" },
+                { nombre: "Song Bum-keun", posicion: "Portero", foto: "/jugadores/corea2.jpg" },
+                { nombre: "Jo Hyeon-woo", posicion: "Portero", foto: "/jugadores/corea3.jpg" },
+                { nombre: "Lee Myung-jae", posicion: "Defensa", foto: "/jugadores/corea4.jpg" },
+                { nombre: "Lee Han-beom", posicion: "Defensa", foto: "/jugadores/corea5.jpg" },
+                { nombre: "Kim Min-jae", posicion: "Defensa", foto: "/jugadores/corea6.jpg" },
+                { nombre: "Won Du-jae", posicion: "Medio", foto: "/jugadores/corea7.jpg" },
+                { nombre: "Seo Min-woo", posicion: "Medio", foto: "/jugadores/corea8.jpg" },
+                { nombre: "Lee Jae-sung", posicion: "Medio", foto: "/jugadores/corea9.jpg" },
+                { nombre: "Son Heung-min", posicion: "Delantero", foto: "/jugadores/corea10.jpg" },
+                { nombre: "Cho Gue-sung", posicion: "Delantero", foto: "/jugadores/corea11.jpg" },
+                { nombre: "Oh Hyeon-gyu", posicion: "Delantero", foto: "/jugadores/corea12.jpg" }
+            ],
+            espana: [
+                { nombre: "David Raya", posicion: "Portero", foto: "/jugadores/espana1.jpg" },
+                { nombre: "Alex Remiro", posicion: "Portero", foto: "/jugadores/espana2.jpg" },
+                { nombre: "Unai Simon", posicion: "Portero", foto: "/jugadores/espana3.jpg" },
+                { nombre: "Dani Vivian", posicion: "Defensa", foto: "/jugadores/espana4.jpg" },
+                { nombre: "Marcos Llorente", posicion: "Defensa", foto: "/jugadores/espana5.jpg" },
+                { nombre: "Pedro Porro", posicion: "Defensa", foto: "/jugadores/espana6.jpg" },
+                { nombre: "Pablo Barrios", posicion: "Medio", foto: "/jugadores/espana7.jpg" },
+                { nombre: "Mikel Merino", posicion: "Medio", foto: "/jugadores/espana8.jpeg" },
+                { nombre: "Fabian Ruiz", posicion: "Medio", foto: "/jugadores/espana9.jpg" },
+                { nombre: "Samu Aghehowa", posicion: "Delantero", foto: "/jugadores/espana10.jpg" },
+                { nombre: "Ferran Torres", posicion: "Delantero", foto: "/jugadores/espana11.jpg" },
+                { nombre: "Borja Iglesias", posicion: "Delantero", foto: "/jugadores/espana12.jpeg" }
+            ],
+            tunez: [
+                { nombre: "Noureddine Farhati", posicion: "Portero", foto: "/jugadores/tunez1.jpg" },
+                { nombre: "Aymen Dahmen", posicion: "Portero", foto: "/jugadores/tunez2.jpg" },
+                { nombre: "Bechir Ben Said", posicion: "Portero", foto: "/jugadores/tunez3.jpg" },
+                { nombre: "Marouane Sahraoui", posicion: "Defensa", foto: "/jugadores/tunez4.jpg" },
+                { nombre: "Mohamed Amine Ben Hamida", posicion: "Defensa", foto: "/jugadores/tunez5.jpg" },
+                { nombre: "Yassine Meriah", posicion: "Defensa", foto: "/jugadores/tunez6.jpg" },
+                { nombre: "Mohamed Ali Ben Romdhane", posicion: "Medio", foto: "/jugadores/tunez7.jpg" },
+                { nombre: "Houssem Tka", posicion: "Medio", foto: "/jugadores/tunez8.jpg" },
+                { nombre: "Chiheb Jebali", posicion: "Medio", foto: "/jugadores/tunez9.jpg" },
+                { nombre: "Nacim Dendani", posicion: "Delantero", foto: "/jugadores/tunez10.png" },
+                { nombre: "Hazem Mastouri", posicion: "Delantero", foto: "/jugadores/tunez11.jpg" },
+                { nombre: "Amor Layouni", posicion: "Delantero", foto: "/jugadores/tunez12.jpg" }
+            ],
+            uruguay: [
+                { nombre: "Santiago Mele", posicion: "Portero", foto: "/jugadores/uruguay1.jpg" },
+                { nombre: "Cristopher Fiermarin", posicion: "Portero", foto: "/jugadores/uruguay2.jpg" },
+                { nombre: "Jose Maria Gimenez", posicion: "Defensa", foto: "/jugadores/uruguay3.jpg" },
+                { nombre: "Matias Vina", posicion: "Defensa", foto: "/jugadores/uruguay4.jpg" },
+                { nombre: "Mathias Olivera", posicion: "Defensa", foto: "/jugadores/uruguay5.jpg" },
+                { nombre: "Rodrigo Bentancur", posicion: "Medio", foto: "/jugadores/uruguay6.jpg" },
+                { nombre: "Nahitan Nandez", posicion: "Medio", foto: "/jugadores/uruguay7.jpg" },
+                { nombre: "Giorgian de Arrascaeta", posicion: "Medio", foto: "/jugadores/uruguay8.jpg" },
+                { nombre: "Facundo Pellistri", posicion: "Delantero", foto: "/jugadores/uruguay9.jpg" },
+                { nombre: "Brian Rodriguez", posicion: "Delantero", foto: "/jugadores/uruguay10.jpg" },
+                { nombre: "Facundo Torres", posicion: "Delantero", foto: "/jugadores/uruguay11.jpg" }
+            ],
+            uzbekistan: [
+                { nombre: "Vladimir Nazarov", posicion: "Portero", foto: "/jugadores/uzbekistan1.jpg" },
+                { nombre: "Abduvohid Nematov", posicion: "Portero", foto: "/jugadores/uzbekistan2.jpg" },
+                { nombre: "Botirali Ergashev", posicion: "Portero", foto: "/jugadores/uzbekistan3.jpg" },
+                { nombre: "Abdukodir Khusanov", posicion: "Defensa", foto: "/jugadores/uzbekistan4.jpg" },
+                { nombre: "Khojiakbar Alijonov", posicion: "Defensa", foto: "/jugadores/uzbekistan5.jpg" },
+                { nombre: "Farrukh Sayfiev", posicion: "Defensa", foto: "/jugadores/uzbekistan6.jpg" },
+                { nombre: "Akmal Mozgovoy", posicion: "Medio", foto: "/jugadores/uzbekistan7.jpg" },
+                { nombre: "Otabek Shukurov", posicion: "Medio", foto: "/jugadores/uzbekistan8.jpeg" },
+                { nombre: "Jamshid Iskanderov", posicion: "Medio", foto: "/jugadores/uzbekistan9.jpg" },
+                { nombre: "Eldor Shomurodov", posicion: "Delantero", foto: "/jugadores/uzbekistan10.jpg" },
+                { nombre: "Igor Sergeev", posicion: "Delantero", foto: "/jugadores/uzbekistan11.jpg" },
+                { nombre: "Khusayin Norchaev", posicion: "Delantero", foto: "/jugadores/uzbekistan12.jpg" }
+            ]
+        };
+
+        // --- NAVEGACIÓN Y APARICIÓN DE VENTANAS ---
+        
+        // 1. Mostrar Información Inicial (Activado desde MindAR targetFound)
+        window.mostrarInformacion = function(pais) {
+            paisActual = pais;
+            
+            // Mostrar overlay principal y esconder los demás
+            document.getElementById('ui-informacion').style.display = 'flex';
+            document.getElementById('ui-estadisticas').style.display = 'none';
+            document.getElementById('ui-jugadores').style.display = 'none';
+            document.getElementById('ui-escaner').style.display = 'none'; // Ocultamos el marco
+
+            // Cargar y animar modelo 3D de la bandera
+            const visor = document.getElementById('visor-bandera');
+            visor.src = `/modelos/bandera de ${pais}.glb`;
+
+            // PRECARGAR IMÁGENES DE JUGADORES EN SEGUNDO PLANO
+            if (jugadoresPorPais[pais]) {
+                jugadoresPorPais[pais].forEach(jugador => {
+                    const img = new Image();
+                    img.src = jugador.foto;
+                });
+            }
+        };
+
+        // 2. Cerrar la info y regresar al Scanner
+        window.cerrarInformacion = function() {
+            // Ocultamos todas las ventanas para despejar la vista de la cámara por completo
+            document.getElementById('ui-informacion').style.display = 'none';
+            document.getElementById('ui-estadisticas').style.display = 'none';
+            document.getElementById('ui-jugadores').style.display = 'none';
+            document.getElementById('ui-escaner').style.display = 'flex'; // Mostramos el marco
+            
+            // Limpiamos el modelo 3D para que no consuma memoria ni batería de fondo
+            document.getElementById('visor-bandera').src = "";
+            
+            // Por seguridad, aseguramos que ningún video se quede reproduciendo
+            cerrarVideo();
+
+            paisActual = null;
+        };
+
+        // 3. Regresar a la Información desde Estadísticas o Jugadores
+        window.volverAInformacion = function(fromId) {
+            document.getElementById(fromId).style.display = 'none';
+            document.getElementById('ui-informacion').style.display = 'flex';
+        };
+
+        // --- FUNCIONES DE BOTONES (ESTADISTICAS, VIDEO, JUGADORES) ---
+
+        // Estadisticas y Trivia
+        document.getElementById('btn-stats').addEventListener('click', () => {
+            if (!paisActual) return;
+            document.getElementById('ui-informacion').style.display = 'none';
+            document.getElementById('ui-estadisticas').style.display = 'flex';
+            
+            // Cargar estadisticas
+            if (statsPorPais[paisActual]) {
+                const data = statsPorPais[paisActual];
+                document.getElementById("posicion").textContent = `#${data.posicion}`;
+                document.getElementById("pts").textContent = data.Pts;
+                document.getElementById("gf").textContent = `A favor: ${data.GF}`;
+                document.getElementById("ga").textContent = `En contra: ${data.GA}`;
+            }
+
+            // Cargar Trivia desde la base de datos
+            const triviaContainer = document.querySelector('.trivia-container');
+            triviaContainer.innerHTML = '<p style="color: white; text-align: center;">Cargando trivia...</p>';
+            
+            fetch(`/api/trivia/${paisActual}`)
+                .then(res => res.json())
+                .then(preguntas => {
+                    triviaContainer.innerHTML = '';
+                    if (preguntas.length === 0) {
+                        triviaContainer.innerHTML = '<p style="color: white; text-align: center;">No hay trivias para este país aún.</p>';
+                        return;
+                    }
+                    preguntas.forEach(p => {
+                        const preguntaBox = document.createElement('div');
+                        preguntaBox.className = 'pregunta-box';
+                        preguntaBox.innerHTML = `
+                            <p class="pregunta-texto">${p.pregunta}</p>
+                            <div class="opciones-grid">
+                                <button class="btn-opcion" data-respuesta="A">${p.inciso_a}</button>
+                                <button class="btn-opcion" data-respuesta="B">${p.inciso_b}</button>
+                            </div>
+                        `;
+                        triviaContainer.appendChild(preguntaBox);
+
+                        // Verificación de trivia
+                        const botones = preguntaBox.querySelectorAll('.btn-opcion');
+                        botones.forEach(boton => {
+                            boton.addEventListener('click', () => {
+                                botones.forEach(b => b.disabled = true);
+                                if (boton.getAttribute('data-respuesta') === p.respuesta_correcta) {
+                                    boton.style.backgroundColor = '#36ddc6'; boton.style.color = '#1e293b';
+                                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, zIndex: 3000 });
+                                } else {
+                                    boton.style.backgroundColor = '#dc2626';
+                                    const btnC = preguntaBox.querySelector(`[data-respuesta="${p.respuesta_correcta}"]`);
+                                    if (btnC) { btnC.style.backgroundColor = '#36ddc6'; btnC.style.color = '#1e293b'; }
+                                }
+                            });
+                        });
+                    });
+                }).catch(err => {
+                    triviaContainer.innerHTML = '<p style="color: red; text-align: center;">Error al cargar la trivia.</p>';
+                });
+        });
+
+        // Jugadores
+        document.getElementById('btn-jugadores').addEventListener('click', () => {
+            if (!paisActual) return;
+            document.getElementById('ui-informacion').style.display = 'none';
+            document.getElementById('ui-jugadores').style.display = 'flex';
+            
+            const album = document.getElementById("album-jugadores");
+            album.innerHTML = "";
+            if (jugadoresPorPais[paisActual]) {
+                jugadoresPorPais[paisActual].forEach(jugador => {
+                    const estampita = document.createElement("div");
+                    estampita.className = "estampita";
+                    estampita.innerHTML = `
+                        <div class="marco-foto"><img src="${jugador.foto}" alt="${jugador.nombre}"></div>
+                        <p class="nombre">${jugador.nombre}</p>
+                        <p class="posicion">${jugador.posicion}</p>
+                    `;
+                    album.appendChild(estampita);
+                });
+            } else {
+                album.innerHTML = "<p>No hay jugadores disponibles para este país.</p>";
+            }
+        });
+
+        // Video y Filtros
+        const modalVideo = document.getElementById('modalVideo');
+        const iframeYoutube = document.getElementById('iframe-youtube');
+
+        window.aplicarFiltro = function(filtro, btnElement) {
+            document.querySelectorAll('.btn-filtro').forEach(btn => btn.classList.remove('activo'));
+            if (btnElement) btnElement.classList.add('activo');
+            iframeYoutube.style.filter = filtro === 'bn' ? 'grayscale(100%)' : filtro === 'sepia' ? 'sepia(100%)' : filtro === 'saturado' ? 'saturate(300%)' : 'none';
+        };
+
+        document.getElementById('btn-video').addEventListener('click', () => {
+            if (paisActual) {
+                modalVideo.style.display = "flex";
+                aplicarFiltro('normal', document.querySelector('.btn-filtro'));
+                fetch(`/api/video/${paisActual}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error('No se encontró en BD o el servidor falló');
+                        return res.json();
+                    })
+                    .then(data => {
+                        iframeYoutube.src = `https://www.youtube.com/embed/${data.youtube_id}?autoplay=1`;
+                    })
+                    .catch(err => {
+                        console.error("Error al cargar video:", err);
+                        alert("Video no disponible aún para este país.");
+                    });
+            }
+        });
+
+        window.cerrarVideo = function () {
+            modalVideo.style.display = "none";
+            iframeYoutube.src = "";
+        };
+
+        // Botón Animar 3D
+        document.getElementById("btn-animar").addEventListener("click", () => {
+            const balon = document.getElementById("balon3d");
+            if (balon) {
+                balon.style.display = "block";
+                balon.style.animation = "none";
+                setTimeout(() => balon.style.animation = "reboteBalon3D 1.2s ease-out", 10);
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, zIndex: 3000 });
+                setTimeout(() => balon.style.display = "none", 1200);
+            }
+        });
+
+        // Mostrar el marco de escáner en cuanto carga la página web
+        document.getElementById('ui-escaner').style.display = 'flex';
+    </script>
+
+    <script src="./js/script.js"></script>
+</body>
+</html>
